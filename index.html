@@ -2,17 +2,31 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>コスモさんぽ DX</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap');
 
-* { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* iOS対応: タップハイライト削除、ダブルタップ拡大防止の基盤 */
+* {
+  margin: 0; padding: 0; box-sizing: border-box;
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+html {
+  touch-action: manipulation; /* 300ms遅延削減 + ダブルタップ拡大抑制 */
+  overscroll-behavior: none;  /* プルリロード防止 */
+  -webkit-overflow-scrolling: touch;
+}
 body {
-  width: 100%; height: 100vh; overflow: hidden;
+  width: 100%; height: 100vh; min-height: -webkit-fill-available;
+  overflow: hidden; position: fixed; /* iOSのバウンススクロール防止 */
   background: #0a0a1a;
   font-family: "M PLUS Rounded 1c", sans-serif;
-  touch-action: none;
+  touch-action: manipulation;
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -27,6 +41,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  touch-action: manipulation; /* ゲームエリアでもダブルタップ拡大を抑止 */
 }
 
 #gameSVG {
@@ -46,10 +61,10 @@ body {
   padding: 6px 14px; border-radius: 15px; border: 2px solid #fff;
   font-size: 14px; pointer-events: none; z-index: 10;
 }
-#stats { top: 15px; left: 15px; display: flex; gap: 10px; }
-#swarmCounter { bottom: 15px; right: 15px; font-size: 16px; background: rgba(255, 71, 87, 0.9); }
+#stats { top: calc(15px + env(safe-area-inset-top)); left: calc(15px + env(safe-area-inset-left)); display: flex; gap: 10px; }
+#swarmCounter { bottom: 15px; right: calc(15px + env(safe-area-inset-right)); font-size: 16px; background: rgba(255, 71, 87, 0.9); }
 #stageIndicator {
-  top: 15px; right: 15px; font-size: 13px; background: rgba(92, 124, 250, 0.8);
+  top: calc(15px + env(safe-area-inset-top)); right: calc(15px + env(safe-area-inset-right)); font-size: 13px; background: rgba(92, 124, 250, 0.8);
   display: none;
 }
 
@@ -189,15 +204,18 @@ body {
 /* ===== ゲームボーイ風コントローラー ===== */
 #controls {
   height: 200px;
+  min-height: calc(200px + env(safe-area-inset-bottom)); /* ノッチ対応 */
+  padding: 10px 30px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
   background: #dcdde1;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 30px;
   box-shadow: inset 0 10px 20px rgba(0,0,0,0.1);
   z-index: 100;
   border-bottom-right-radius: 20px;
   border-bottom-left-radius: 20px;
+  touch-action: manipulation; /* タッチ操作の即時反応 */
 }
 
 .dpad-container {
@@ -573,6 +591,12 @@ const game = {
     this.svg.addEventListener('mousedown', (e) => {
       if(this.state === 'playing') this.throwSwarmMouse(e);
     });
+    this.svg.addEventListener('touchstart', (e) => {
+      if(this.state === 'playing' && e.changedTouches[0]) {
+        e.preventDefault();
+        this.throwSwarmTouch(e.changedTouches[0]);
+      }
+    }, { passive: false });
 
     this.setupMobileControls();
 
@@ -1134,10 +1158,17 @@ const game = {
   },
 
   throwSwarmMouse(e) {
-    const rect=this.svg.getBoundingClientRect();
-    const tx=(e.clientX-rect.left)*(800/rect.width);
-    const ty=(e.clientY-rect.top)*(600/rect.height);
-    this.execThrow(tx,ty);
+    const rect = this.svg.getBoundingClientRect();
+    const tx = (e.clientX - rect.left) * (800 / rect.width);
+    const ty = (e.clientY - rect.top) * (600 / rect.height);
+    this.execThrow(tx, ty);
+  },
+
+  throwSwarmTouch(touch) {
+    const rect = this.svg.getBoundingClientRect();
+    const tx = (touch.clientX - rect.left) * (800 / rect.width);
+    const ty = (touch.clientY - rect.top) * (600 / rect.height);
+    this.execThrow(tx, ty);
   },
 
   execThrow(tx,ty) {
@@ -1307,6 +1338,21 @@ const game = {
     });
   }
 };
+
+// ==================== iOS対応: ダブルタップ拡大防止 ====================
+// CSSのtouch-actionだけではiOS Safariで不十分なため、JSで追加対策
+(function initIOSDoubleTapPrevent() {
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 350) {
+      e.preventDefault();
+    }
+    lastTouchEnd = now;
+  }, { passive: false });
+
+  document.addEventListener('dblclick', (e) => e.preventDefault());
+})();
 
 window.addEventListener('load', () => game.init());
 </script>
