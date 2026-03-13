@@ -1,0 +1,269 @@
+@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap');
+
+/* iOS対応: タップハイライト削除、ダブルタップ拡大防止の基盤 */
+* {
+margin: 0; padding: 0; box-sizing: border-box;
+-webkit-user-select: none; user-select: none;
+-webkit-touch-callout: none;
+-webkit-tap-highlight-color: transparent;
+}
+html {
+touch-action: manipulation; /* 300ms遅延削減 + ダブルタップ拡大抑制 */
+overscroll-behavior: none;  /* プルリロード防止 */
+-webkit-overflow-scrolling: touch;
+}
+body {
+width: 100%; height: 100vh; min-height: -webkit-fill-available;
+overflow: hidden; position: fixed; /* iOSのバウンススクロール防止 */
+background: #0a0a1a;
+font-family: "M PLUS Rounded 1c", sans-serif;
+touch-action: manipulation;
+color: #fff;
+display: flex;
+flex-direction: column;
+}
+
+#gameArea {
+position: relative;
+flex: 1;
+width: 100%;
+background: #182848;
+overflow: hidden;
+display: flex;
+justify-content: center;
+align-items: center;
+touch-action: manipulation; /* ゲームエリアでもダブルタップ拡大を抑止 */
+}
+
+#gameSVG {
+width: 100%; height: 100%;
+max-width: 800px;
+background: radial-gradient(circle at center, #5c7cfa 0%, #182848 100%);
+}
+@media (min-width: 801px) {
+#gameSVG {
+  height: auto; aspect-ratio: 4/3;
+  border: 8px solid #fff; border-radius: 20px;
+}
+}
+
+.ui-box {
+position: absolute; background: rgba(0,0,0,0.6); color: #fff;
+padding: 6px 14px; border-radius: 15px; border: 2px solid #fff;
+font-size: 14px; pointer-events: none; z-index: 10;
+}
+#stats { top: calc(15px + env(safe-area-inset-top)); left: calc(15px + env(safe-area-inset-left)); display: flex; gap: 10px; }
+#swarmCounter { bottom: 15px; right: calc(15px + env(safe-area-inset-right)); font-size: 16px; background: rgba(255, 71, 87, 0.9); }
+#stageIndicator {
+top: calc(15px + env(safe-area-inset-top)); right: calc(15px + env(safe-area-inset-right)); font-size: 13px; background: rgba(92, 124, 250, 0.8);
+display: none;
+}
+
+/* ===== オーバーレイ ===== */
+#overlay {
+position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+background: rgba(0,0,0,0.92); z-index: 999;
+display: flex; flex-direction: column;
+justify-content: center; align-items: center;
+backdrop-filter: blur(6px);
+transition: opacity 0.5s;
+}
+#overlay.hidden { opacity: 0; pointer-events: none; }
+
+/* プロローグ用 */
+#prologueContainer {
+display: none;
+flex-direction: column;
+align-items: center;
+justify-content: center;
+width: 100%; height: 100%;
+position: relative;
+}
+#prologueSVG {
+position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+pointer-events: none;
+}
+.prologue-line {
+font-size: 18px; line-height: 2.4; color: #fff;
+opacity: 0; transform: translateY(12px);
+transition: opacity 0.8s ease, transform 0.8s ease;
+text-align: center;
+text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+position: relative; z-index: 2;
+}
+.prologue-line.visible {
+opacity: 1; transform: translateY(0);
+}
+.prologue-line.speaker {
+color: #ffeaa7; font-size: 16px;
+}
+#prologueSkip {
+position: absolute; bottom: 40px; z-index: 3;
+background: rgba(255,255,255,0.15); border: 2px solid rgba(255,255,255,0.4);
+color: #fff; padding: 14px 36px; border-radius: 30px;
+font-size: 15px; cursor: pointer; opacity: 0;
+transition: opacity 0.5s;
+font-family: "M PLUS Rounded 1c", sans-serif;
+min-height: 48px; min-width: 200px; display: inline-flex; align-items: center; justify-content: center;
+-webkit-tap-highlight-color: transparent;
+touch-action: manipulation;
+}
+#prologueSkip.visible { opacity: 1; }
+#prologueSkip:active { background: rgba(255,255,255,0.3); }
+
+/* ステージ間演出 */
+#stageOverlay {
+position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+background: rgba(0,0,0,0.85); z-index: 998;
+display: none; flex-direction: column;
+justify-content: center; align-items: center;
+backdrop-filter: blur(4px);
+}
+#stageTitle {
+font-size: 24px; color: #74b9ff; margin-bottom: 12px;
+opacity: 0; transition: opacity 0.6s;
+text-shadow: 0 0 20px rgba(116, 185, 255, 0.5);
+}
+#stageMessage {
+font-size: 16px; color: #dfe6e9; text-align: center; line-height: 1.8;
+opacity: 0; transition: opacity 0.6s;
+max-width: 80%;
+}
+#stageTitle.visible, #stageMessage.visible { opacity: 1; }
+
+/* エンディング */
+#endingContainer {
+display: none; flex-direction: column;
+align-items: center; justify-content: center;
+width: 100%; height: 100%; position: relative;
+}
+#endingSVG {
+width: 300px; height: 200px; margin-bottom: 20px;
+opacity: 0; transition: opacity 1s;
+}
+#endingSVG.visible { opacity: 1; }
+.ending-line {
+font-size: 17px; line-height: 2.2; color: #fff;
+opacity: 0; transition: opacity 0.8s ease;
+text-align: center;
+text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+.ending-line.visible { opacity: 1; }
+.ending-title {
+font-size: 28px; color: #f1c40f; margin-bottom: 16px;
+text-shadow: 0 0 20px rgba(241, 196, 15, 0.4);
+}
+
+/* タイトル画面 */
+#titleContainer {
+display: flex; flex-direction: column;
+align-items: center; justify-content: center;
+}
+#titleLogo {
+font-size: 36px; color: #f1c40f;
+text-shadow: 0 4px 0 #e67e22, 0 0 30px rgba(241, 196, 15, 0.3);
+margin-bottom: 8px;
+}
+#titleSub {
+font-size: 14px; color: #a4b0be; margin-bottom: 30px;
+}
+#titleDesc {
+font-size: 14px; line-height: 1.8; text-align: center;
+color: #dfe6e9; margin-bottom: 30px;
+}
+.btn-start {
+background: #2ed573; border: 4px solid #fff; color: white;
+padding: 15px 40px; font-size: 20px; border-radius: 50px;
+font-weight: bold; cursor: pointer;
+box-shadow: 0 6px 0 #1e8449;
+transition: transform 0.1s;
+font-family: "M PLUS Rounded 1c", sans-serif;
+}
+.btn-start:active { transform: translateY(4px); box-shadow: 0 2px 0 #1e8449; }
+
+/* ゲームオーバー */
+#gameoverContainer {
+display: none; flex-direction: column;
+align-items: center; justify-content: center;
+}
+#gameoverTitle {
+font-size: 26px; color: #a4b0be; margin-bottom: 16px;
+text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+#gameoverMsg {
+font-size: 15px; color: #dfe6e9; text-align: center;
+line-height: 1.8; margin-bottom: 30px;
+}
+
+/* ===== ゲームボーイ風コントローラー ===== */
+#controls {
+height: 200px;
+min-height: calc(200px + env(safe-area-inset-bottom)); /* ノッチ対応 */
+padding: 10px 30px;
+padding-bottom: calc(10px + env(safe-area-inset-bottom));
+background: #dcdde1;
+display: flex;
+justify-content: space-between;
+align-items: center;
+box-shadow: inset 0 10px 20px rgba(0,0,0,0.1);
+z-index: 100;
+border-bottom-right-radius: 20px;
+border-bottom-left-radius: 20px;
+touch-action: manipulation; /* タッチ操作の即時反応 */
+}
+
+.dpad-container {
+position: relative; width: 140px; height: 140px;
+}
+.dpad-cross-h {
+position: absolute; top: 50px; left: 10px; width: 120px; height: 40px;
+background: #2d3436; border-radius: 4px; box-shadow: 0 4px 0 #000;
+}
+.dpad-cross-v {
+position: absolute; top: 10px; left: 50px; width: 40px; height: 120px;
+background: #2d3436; border-radius: 4px; box-shadow: 0 4px 0 #000;
+}
+.dpad-center-circle {
+position: absolute; top: 55px; left: 55px; width: 30px; height: 30px;
+background: radial-gradient(circle, #2d3436 20%, #1a1a1a 80%);
+border-radius: 50%; opacity: 0.8;
+}
+.dpad-touch {
+position: absolute; width: 50px; height: 50px; z-index: 10;
+}
+.touch-up { top: 0; left: 45px; height: 60px; }
+.touch-down { bottom: 0; left: 45px; height: 60px; }
+.touch-left { top: 45px; left: 0; width: 60px; }
+.touch-right { top: 45px; right: 0; width: 60px; }
+
+.action-area {
+position: relative; width: 160px; height: 140px;
+display: flex; align-items: flex-end; justify-content: flex-end;
+}
+.btns-bg {
+position: absolute; bottom: 20px; right: 0;
+width: 140px; height: 70px;
+background: rgba(0,0,0,0.05); border-radius: 35px;
+transform: rotate(-15deg);
+}
+.ab-btn {
+width: 60px; height: 60px; border-radius: 50%;
+background: #e74c3c;
+box-shadow: 0 4px 0 #c0392b, 2px 5px 10px rgba(0,0,0,0.2);
+display: flex; justify-content: center; align-items: center;
+font-weight: bold; font-size: 20px; color: rgba(0,0,0,0.2);
+position: absolute;
+transition: transform 0.1s, box-shadow 0.1s;
+}
+.ab-btn:active {
+transform: translateY(4px); box-shadow: 0 0 0 #c0392b, inset 0 2px 5px rgba(0,0,0,0.3);
+}
+.btn-a { bottom: 30px; right: 10px; }
+.btn-b { bottom: 10px; right: 80px; }
+.btn-label {
+position: absolute; font-size: 14px; color: #636e72; font-weight: bold;
+}
+
+@media (min-width: 801px) {
+#controls { display: none; }
+}
